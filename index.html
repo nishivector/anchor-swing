@@ -222,6 +222,7 @@ let gameObjects = { stalactites: [], crystals: [], anchorZones: [], exit: null }
 let waterY = -999;
 let waterRising = false;
 let deathFlash = 0;
+let invincibleTimer = 0; // grace period after spawn
 let particles = [];
 
 // Camera
@@ -375,9 +376,10 @@ function generateLevel(lvl) {
   floorMesh.position.set(0, caveBottom - 1.5, -1);
   caveGroup.add(floorMesh);
 
-  // Stalactites hanging from ceiling
+  // Stalactites hanging from ceiling (exclude spawn zone: first 5 units from left)
+  const spawnSafeZone = 5;
   for (let i = 0; i < cfg.stalactites; i++) {
-    const x = caveLeft + 3 + Math.random() * (caveW - 6);
+    const x = caveLeft + spawnSafeZone + Math.random() * (caveW - spawnSafeZone - 3);
     const h = 1.5 + Math.random() * 3;
     const w = 0.3 + Math.random() * 0.5;
     const y = caveTop;
@@ -468,15 +470,15 @@ function generateLevel(lvl) {
     gameObjects.waterMesh = waterMesh;
   }
 
-  // Spelunker start position — hang from ceiling with starting anchor
+  // Spelunker start position — mid-height left side, no stalactites near spawn
   spelX = caveLeft + 2;
-  spelY = caveTop - 4;
+  spelY = 0; // exact center — clear of stalactites that hang from ceiling
   spelVX = 0;
   spelVY = 0;
-  // Start with an anchor so spelunker doesn't fall immediately
+  // Start with an anchor above (mid-cave ceiling) so spelunker is suspended
   anchorX = caveLeft + 2;
-  anchorY = caveTop;
-  ropeLen = 4;
+  anchorY = caveH * 0.25; // anchor is 25% up — not at ceiling where stalactites are
+  ropeLen = caveH * 0.25; // rope matches distance
   hasAnchor = true;
   isSwinging = true;
   anchorMesh.visible = true;
@@ -516,6 +518,7 @@ document.getElementById('startScreen').addEventListener('pointerdown', () => {
   document.getElementById('startScreen').classList.add('hidden');
   initAudio().catch(() => {});
   generateLevel(0);
+  invincibleTimer = 2.0; // 2 seconds grace on first start
 }, { once: true });
 
 document.getElementById('gameOver').addEventListener('pointerdown', () => {
@@ -677,15 +680,22 @@ function checkCollisions() {
     return;
   }
 
-  // Stalactites
-  for (const s of gameObjects.stalactites) {
-    const dx = spelX - s.x;
-    const dy = spelY - (s.y + s.h / 2);
-    // Simple box check
-    if (Math.abs(dx) < s.w / 2 + SPELUNKER_R && Math.abs(dy) < s.h / 2 + SPELUNKER_R * 0.5) {
-      killSpelunker();
-      return;
+  // Stalactites (skip if invincible after spawn)
+  if (invincibleTimer <= 0) {
+    for (const s of gameObjects.stalactites) {
+      const dx = spelX - s.x;
+      const tipY = s.y; // tip (lowest point of stalactite)
+      const topY = tipY + s.h; // top (at ceiling)
+      // Only check if spelunker is within vertical range of stalactite
+      if (spelY < topY && spelY > tipY - SPELUNKER_R) {
+        if (Math.abs(dx) < s.w / 2 + SPELUNKER_R) {
+          killSpelunker();
+          return;
+        }
+      }
     }
+  } else {
+    invincibleTimer -= dt;
   }
 
   // Water
@@ -742,17 +752,18 @@ function killSpelunker() {
   } else {
     const cfg = LEVEL_CONFIGS[level];
     spelX = -cfg.caveW / 2 + 2;
-    spelY = cfg.caveH / 2 - 4;
+    spelY = 0;
     spelVX = 0;
     spelVY = 0;
     // Respawn with anchor
     anchorX = spelX;
-    anchorY = cfg.caveH / 2;
-    ropeLen = 4;
+    anchorY = cfg.caveH * 0.25;
+    ropeLen = cfg.caveH * 0.25;
     hasAnchor = true;
     isSwinging = true;
     anchorMesh.visible = true;
     anchorMesh.position.set(anchorX, anchorY, 1);
+    invincibleTimer = 1.5; // grace period
   }
 }
 
