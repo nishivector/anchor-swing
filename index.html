@@ -131,7 +131,7 @@ const CAVE_L = -W / 2;       // left start
 const CAVE_R = CAVE_L + CAVE_W;  // right end
 
 // Physics (pixels)
-const GRAVITY = 400;  // px/s²
+const GRAVITY = 250;  // px/s² — gentle pendulum gravity
 const MAX_SPEED = 600; // px/s
 const SPELUNKER_R = 12;
 const CRYSTAL_R = 16;
@@ -329,9 +329,10 @@ function generateLevel(lvl) {
     crystals.push({ x: cx, y: cy, phase, collected: false, mesh, glow });
   }
 
-  // Stalactites hanging from ceiling — avoiding start area
+  // Stalactites hanging from ceiling — safe zone: first 300px from left is clear
+  const SAFE_LEFT = CAVE_L + 300;
   for (let i = 0; i < cfg.stalactites; i++) {
-    const sx = CAVE_L + 120 + Math.random() * (CAVE_W - 240);
+    const sx = SAFE_LEFT + Math.random() * (CAVE_W - 360);
     const sh = 40 + Math.random() * 100;
     const sw = 15 + Math.random() * 20;
     const sy = CAVE_T; // top at ceiling
@@ -378,7 +379,7 @@ function generateLevel(lvl) {
   hasAnchor = true;
   anchorMesh.visible = true;
   anchorMesh.position.set(anchorX, anchorY, 1);
-  invincibleTimer = 2.5;
+  invincibleTimer = 4.0; // 4 seconds grace on level start
 
   camX = 0;
 
@@ -484,7 +485,7 @@ function killSpelunker() {
     hasAnchor = true;
     anchorMesh.visible = true;
     anchorMesh.position.set(anchorX - camX, anchorY, 1);
-    invincibleTimer = 2.5;
+    invincibleTimer = 4.0;
     camX = 0;
     gameState = 'playing';
   }
