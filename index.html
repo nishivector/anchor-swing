@@ -468,13 +468,19 @@ function generateLevel(lvl) {
     gameObjects.waterMesh = waterMesh;
   }
 
-  // Spelunker start position (left side, middle height)
+  // Spelunker start position — hang from ceiling with starting anchor
   spelX = caveLeft + 2;
-  spelY = 0;
+  spelY = caveTop - 4;
   spelVX = 0;
   spelVY = 0;
-  hasAnchor = false;
-  isSwinging = false;
+  // Start with an anchor so spelunker doesn't fall immediately
+  anchorX = caveLeft + 2;
+  anchorY = caveTop;
+  ropeLen = 4;
+  hasAnchor = true;
+  isSwinging = true;
+  anchorMesh.visible = true;
+  anchorMesh.position.set(anchorX, anchorY, 1);
 
   document.getElementById('levelDisplay').textContent = `LEVEL ${lvl + 1} — ${cfg.name}`;
   document.getElementById('crystalCount').textContent = `◆ 0/${totalCrystals}`;
@@ -519,6 +525,7 @@ document.getElementById('gameOver').addEventListener('pointerdown', () => {
   level = 0;
   gameState = 'playing';
   generateLevel(0);
+  document.getElementById('scoreDisplay').textContent = '0';
 });
 
 canvas.addEventListener('pointerdown', e => {
@@ -657,8 +664,15 @@ function checkCollisions() {
   if (spelX > caveRight - SPELUNKER_R) { spelX = caveRight - SPELUNKER_R; spelVX = -Math.abs(spelVX) * 0.3; }
   if (spelY > caveTop - SPELUNKER_R) { spelY = caveTop - SPELUNKER_R; spelVY = -Math.abs(spelVY) * 0.3; hasAnchor = false; isSwinging = false; }
 
-  // Fall off bottom
-  if (spelY < caveBottom - 2) {
+  // Cave floor — bounce or land (don't kill immediately, push back up)
+  if (spelY < caveBottom + SPELUNKER_R) {
+    spelY = caveBottom + SPELUNKER_R;
+    spelVY = Math.abs(spelVY) * 0.2;
+    spelVX *= 0.8;
+  }
+
+  // Fall off bottom (only kill if far below cave)
+  if (spelY < caveBottom - 3) {
     killSpelunker();
     return;
   }
@@ -726,13 +740,19 @@ function killSpelunker() {
       document.getElementById('gameOver').classList.remove('hidden');
     }, 800);
   } else {
-    hasAnchor = false;
-    isSwinging = false;
     const cfg = LEVEL_CONFIGS[level];
     spelX = -cfg.caveW / 2 + 2;
-    spelY = 0;
+    spelY = cfg.caveH / 2 - 4;
     spelVX = 0;
     spelVY = 0;
+    // Respawn with anchor
+    anchorX = spelX;
+    anchorY = cfg.caveH / 2;
+    ropeLen = 4;
+    hasAnchor = true;
+    isSwinging = true;
+    anchorMesh.visible = true;
+    anchorMesh.position.set(anchorX, anchorY, 1);
   }
 }
 
